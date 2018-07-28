@@ -44,30 +44,50 @@ def create_CEA(msg):
     ret=createRes(CEA,CEA_avps)  
     # ret now contains CEA Response as hex string  
     print ret
-    return ret  
+    return ret 
 
-def create_DWA(msg): 
+def create_DWA(msg):
     H=HDRItem()
-    stripHdr(H,msg) 
+    stripHdr(H,msg)
     # Let's build Diameter-WatchdogAnswer   
-    DWA_avps=[]  
-    DWA_avps.append(encodeAVP("Origin-Host", ORIGIN_HOST))  
-    DWA_avps.append(encodeAVP("Origin-Realm", ORIGIN_REALM))  
+    DWA_avps=[]
+    DWA_avps.append(encodeAVP("Origin-Host", ORIGIN_HOST))
+    DWA_avps.append(encodeAVP("Origin-Realm", ORIGIN_REALM))
     DWA_avps.append(encodeAVP("Result-Code", 2001)) #DIAMETER_SUCCESS 2001  
     # Create message header (empty)  
-    DWA=HDRItem()  
+    DWA=HDRItem()
     # Set command code  
-    DWA.cmd=H.cmd  
+    DWA.cmd=H.cmd
     # Set Application-id  
-    DWA.appId=H.appId  
+    DWA.appId=H.appId
     # Set Hop-by-Hop and End-to-End from request  
-    DWA.HopByHop=H.HopByHop  
-    DWA.EndToEnd=H.EndToEnd  
+    DWA.HopByHop=H.HopByHop
+    DWA.EndToEnd=H.EndToEnd
     # Add AVPs to header and calculate remaining fields  
-    ret=createRes(DWA,DWA_avps)  
+    ret=createRes(DWA,DWA_avps)
     # ret now contains DWA Response as hex string  
-    return ret  
+    return ret
     # Create Disconnect_Peer response in reply to Disconnect_Peer request. We just reply with 2001 OK for testing purposes           
+
+
+def process_request(rawdata):
+    H=HDRItem()
+    stripHdr(H,rawdata)
+    dbg="Processing",dictCOMMANDcode2name(H.flags,H.cmd)
+    logging.info(dbg)
+    if H.flags & DIAMETER_HDR_REQUEST==0:
+        # If Answer no need to do anything  
+        return SKIP
+    if H.cmd==257: # Capabilities-Exchange  
+        return create_CEA(rawdata)
+    if H.cmd==280: # Device-Watchdog  
+        return create_DWA(rawdata)
+    if H.cmd==272: # Credit-Control
+        variable=splitMsgAVPs(H.msg)
+        DEST_HOST=findAVP("Destination-Host",variable)
+        print ("This is a CCR message for destination host :"+ str(DEST_HOST))
+        return SKIP
+    return create_UTC(rawdata,"Unknown command code")         
 
 
 def process_request(rawdata):
@@ -135,20 +155,26 @@ def server_program():
 
     while True:
         # receive data stream. it won't accept data packet greater than 1024 bytes
-        data = conn.recv(10000).decode("HEX")        
+        data = conn.recv(10000).encode('hex') # See encoding scheme and match here
+
+        #If encoding is not in HEX insert function here to convert data into hex
+
         if not data:
-            # if data is not received break
-            break
+         # if data is not received break
+                continue
+
+        print data
+
         diameter_header(data)
         return_value = process_request(data)
-#        DecodeMSG(data)
-        if return_value == ERROR:  
+        DecodeMSG(data)
+        if return_value == ERROR:
             print ("Error decoding Diameter message")
-        else:  
-            if return_value == SKIP:  
-                print ("Saving and storing data to send to Host")        
-            else:    
-                conn.send(return_value.decode("hex")) 
+        else:
+            if return_value == SKIP:
+                print ("Saving and storing data to send to Host")
+            else:
+                conn.send(return_value.upper().decode('hex'))
 
 
 #        data = raw_input(' -> ')
@@ -159,7 +185,8 @@ def server_program():
 
 if __name__ == '__main__':
     SKIP = 0
-    ORIGIN_HOST="dra.zte.com"  
-    ORIGIN_REALM="zte.com"  
+    ORIGIN_HOST="dra.zte.com"
+    IP_ADDRESS="192.168.1.40"
+    ORIGIN_REALM="zte.com"
     LoadDictionary("/root/dictDiameter.xml")
     server_program()
