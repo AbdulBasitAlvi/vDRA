@@ -14,7 +14,7 @@ def client_program():
         CCR_message = CCR_message.upper().decode('hex')
 #       print CCR_message
         client_socket.send(CCR_message)  # send message
-        data = client_socket.recv(10000).encode('ex')  # receive response
+        data = client_socket.recv(10000).encode('hex')  # receive response
 
         print('Received from server: ' + data)  # show in terminal
 

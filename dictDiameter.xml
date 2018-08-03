@@ -3066,3 +3066,4 @@
     <!-- *** SICS AVPs *** -->
     <avp code="100" vendor-id="SICS" name="GIADDR" type="UTF8String"/>
     <avp code="101" vendor-id="SICS" name="UACS-Accounting" type="UTF8String"/>
+</dictionary>
