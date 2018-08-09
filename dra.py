@@ -1,73 +1,18 @@
 import socket
 import binascii
 from libDiameter import *
+from msgDiameter import *
 
-def DecodeMSG(msg):
-    H=HDRItem()
-    stripHdr(H,msg)
-    avps=splitMsgAVPs(H.msg)
-    cmd=dictCOMMANDcode2name(H.flags,H.cmd)
-    if cmd==ERROR:
-        print 'Unknown command',H.cmd
-    else:
-        print cmd
-    print "Hop-by-Hop=",H.HopByHop,"End-to-End=",H.EndToEnd,"ApplicationId=",H.appId
-    for avp in avps:
-      print "RAW AVP",avp
-      print "Decoded AVP",decodeAVP(avp)
-    print "-"*30
-
-def create_CEA(msg):  
-    H=HDRItem()
-    stripHdr(H,msg)
-    global DEST_REALM  
-    CER_avps=splitMsgAVPs(H.msg)  
-    DEST_REALM=findAVP("Origin-Realm",CER_avps)    
-    # Let's build Capabilites-Exchange Answer  
-    CEA_avps=[]  
-    CEA_avps.append(encodeAVP("Origin-Host", ORIGIN_HOST))  
-    CEA_avps.append(encodeAVP("Origin-Realm", ORIGIN_REALM))  
-    CEA_avps.append(encodeAVP("Product-Name", "OCS-SIM"))  
-    CEA_avps.append(encodeAVP('Auth-Application-Id', 4))  
-    CEA_avps.append(encodeAVP("Supported-Vendor-Id", 10415))  
-    CEA_avps.append(encodeAVP("Result-Code", 2001))  #DIAMETER_SUCCESS 2001  
-    # Create message header (empty)  
-    CEA=HDRItem()  
-    # Set command code  
-    CEA.cmd=H.cmd  
-    # Set Application-id  
-    CEA.appId=H.appId  
-    # Set Hop-by-Hop and End-to-End from request  
-    CEA.HopByHop=H.HopByHop  
-    CEA.EndToEnd=H.EndToEnd  
-    # Add AVPs to header and calculate remaining fields  
-    ret=createRes(CEA,CEA_avps)  
-    # ret now contains CEA Response as hex string  
-    print ret
-    return ret 
-
-def create_DWA(msg):
-    H=HDRItem()
-    stripHdr(H,msg)
-    # Let's build Diameter-WatchdogAnswer   
-    DWA_avps=[]
-    DWA_avps.append(encodeAVP("Origin-Host", ORIGIN_HOST))
-    DWA_avps.append(encodeAVP("Origin-Realm", ORIGIN_REALM))
-    DWA_avps.append(encodeAVP("Result-Code", 2001)) #DIAMETER_SUCCESS 2001  
-    # Create message header (empty)  
-    DWA=HDRItem()
-    # Set command code  
-    DWA.cmd=H.cmd
-    # Set Application-id  
-    DWA.appId=H.appId
-    # Set Hop-by-Hop and End-to-End from request  
-    DWA.HopByHop=H.HopByHop
-    DWA.EndToEnd=H.EndToEnd
-    # Add AVPs to header and calculate remaining fields  
-    ret=createRes(DWA,DWA_avps)
-    # ret now contains DWA Response as hex string  
-    return ret
-    # Create Disconnect_Peer response in reply to Disconnect_Peer request. We just reply with 2001 OK for testing purposes           
+PCRF_PORT = 5001
+PCRF_IP = "10.248.125.144"
+DRA_PORT = 6000
+DRA_IP = "10.150.32.2"
+SKIP = 2 # Flag used in Skip message for message processing
+IS_CCR = 0 # Flag for CCR, If 1 then message is a CCR request
+IS_CCA = 1 # Flag for CCA
+ORIGIN_HOST="dra.zte.com"
+ORIGIN_REALM="zte.com"
+VENDOR_ID = 10415
 
 
 def process_request(rawdata):
@@ -84,109 +29,92 @@ def process_request(rawdata):
         return create_DWA(rawdata)
     if H.cmd==272: # Credit-Control
         variable=splitMsgAVPs(H.msg)
-        DEST_HOST=findAVP("Destination-Host",variable)
-        print ("This is a CCR message for destination host :"+ str(DEST_HOST))
-        return SKIP
+        if H.flags==192:
+            DEST_HOST=findAVP("Destination-Host",variable)
+            print ("This is a Credit Control Request for Destination Host : " + DEST_HOST)
+            return IS_CCR
+        else:
+            DEST_HOST=findAVP("Destination-Host",variable)
+            print ("This is a Credit Control Answer for Destination Host : " + DEST_HOST)
+            return IS_CCA
+
     return create_UTC(rawdata,"Unknown command code")         
 
 
-def process_request(rawdata):
-    H=HDRItem()
-    stripHdr(H,rawdata)
-    dbg="Processing",dictCOMMANDcode2name(H.flags,H.cmd)
-    logging.info(dbg)
-    if H.flags & DIAMETER_HDR_REQUEST==0:
-        # If Answer no need to do anything  
-        return SKIP
-    if H.cmd==257: # Capabilities-Exchange  
-        return create_CEA(rawdata)
-    if H.cmd==280: # Device-Watchdog  
-        return create_DWA(rawdata)
-    if H.cmd==272: # Credit-Control
-        variable=splitMsgAVPs(H.msg)
-        DEST_HOST=findAVP("Destination-Host",variable)
-        print ("This is a CCR message for destination host :"+ str(DEST_HOST))
-        return SKIP
-    return create_UTC(rawdata,"Unknown command code")
-
-
-def hex_to_int(string):
-    var = int(string, 16)
-    return var
-
-def hex_to_bin(string):
-    var = int(string, 16)
-    return bin(var)[2:]
-
-def diameter_header(raw_data):
-    string = str(raw_data)
-#    print string
-    version = hex_to_int(string[0:2])
-    length = hex_to_int(string[2:8])
-    flags = hex_to_bin(string[8:10])
-    command_code = hex_to_int(string[10:16])
-    application_id = hex_to_int(string[16:24])
-    hop_id = hex_to_int(string[24:32])
-    end_id = hex_to_int(string[32:40])
-
-    print ("Version : " +str(version))
-    print ("Length :  " +str(length))
-    print ("Flags : " + str(flags))
-    print ("Command Code : " + str(command_code))
-    print ("Application ID : " + str(application_id))
-    print ("Hop-by-Hop Identifier: " + str(hop_id))
-    print ("End-to-End Identifier: " + str(end_id))
-
-
 def server_program():
-    # get the hostname
-    host = socket.gethostname()
-    port = 5001  # initiate port no above 1024
 
-    server_socket = socket.socket()  # get instance
-    # look closely. The bind() function takes tuple as argument
-    server_socket.bind((host, port))  # bind host address and port together
+    pcrf_socket = socket.socket()  # Instantiate PCRF connection
+    try:
+        pcrf_socket.connect((PCRF_IP, PCRF_PORT))  # Connect to PCRF
+        print ("Connected to PCRF")
+        pcrf_socket.send(create_CER().decode('hex'))  # Send CER to PCRF
+        print ("Sent Capabilities-Exchange Request")
+        print("Recieved CER")
+        try:
+            pcrf_data = pcrf_socket.recv(10000).encode('hex')  # Receive CEA from PCRF
+            DecodeMSG(pcrf_data)
+        except socket.error:
+            print ("Not connected to PCRF")
+    except socket.error:
+        print ("Could not connect to PCRF")
 
-    # configure how many client the server can listen simultaneously
-    server_socket.listen(2)
-    conn, address = server_socket.accept()  # accept new connection
+
+    ggsn_socket = socket.socket() 
+    ggsn_socket.bind((DRA_IP, DRA_PORT))  # Instantiate GGSN connection
+    ggsn_socket.listen(2)  #Configure how many client the server can listen simultaneously
+    conn, address = ggsn_socket.accept()  # Accept new connection
 
     print("Connection from: " + str(address))
 
     while True:
-        # receive data stream. it won't accept data packet greater than 1024 bytes
-        data = conn.recv(10000).encode('hex') # See encoding scheme and match here
-
-        #If encoding is not in HEX insert function here to convert data into hex
-
-        if not data:
-         # if data is not received break
-                continue
-
-        print data
-
-        diameter_header(data)
-        return_value = process_request(data)
-        DecodeMSG(data)
-        if return_value == ERROR:
-            print ("Error decoding Diameter message")
+        # Recieve data from PCRF
+        pcrf_data = pcrf_socket.recv(10000).encode('hex')
+        if not pcrf_data:
+        # If data is not recieved from PCRF
+            print ("No data to recieve from PCRF")
         else:
-            if return_value == SKIP:
-                print ("Saving and storing data to send to Host")
+            pcrf_return_value = process_request(pcrf_data)
+            print ("Incomming Data from PCRF")
+            DecodeMSG(pcrf_data)       
+            if pcrf_return_value == ERROR:
+                print ("Error decoding Diameter message")
+            if pcrf_return_value == IS_CCR:
+                conn.send(pcrf_data.decode('hex')) # Send CCA to GGSN
             else:
-                conn.send(return_value.upper().decode('hex'))
+                if pcrf_return_value == SKIP:
+                    print ("This is an Answer message")
+                else:
+                    print ("Sending reply to PCRF")
+                    print (DecodeMSG(pcrf_return_value.upper()))
+                    pcrf_socket.send(pcrf_return_value.upper().decode('hex')) #Send CEA and DWA to PCRF
 
 
-#        data = raw_input(' -> ')
-#        conn.send(data.encode())  # send data to the client
+        # Recieve data from GGSN
+        ggsn_data = conn.recv(10000).encode('hex') 
+        if not ggsn_data:
+        # If data is not received from GGSN skip the loop
+            continue
+
+        #Decode diameter Header from GGSN
+        diameter_header(ggsn_data)
+        DecodeMSG(ggsn_data)
+
+        # Process incomming data from GGSN
+        ggsn_return_value = process_request(ggsn_data)        
+        if ggsn_return_value == ERROR:
+            print ("Error decoding Diameter message")
+        if ggsn_return_value == IS_CCR:
+            pcrf_socket.send(ggsn_data.decode('hex')) # Send CCR to PCRF
+        else:
+            if ggsn_return_value == SKIP:
+                print ("This is an Answer message")
+            else:
+                conn.send(ggsn_return_value.upper().decode('hex')) #Send CEA and DWA to GGSN
 
     conn.close()  # close the connection
+    pcrf_socket.close()
 
 
 if __name__ == '__main__':
-    SKIP = 0
-    ORIGIN_HOST="dra.zte.com"
-    IP_ADDRESS="192.168.1.40"
-    ORIGIN_REALM="zte.com"
     LoadDictionary("/root/dictDiameter.xml")
     server_program()
