@@ -43,6 +43,7 @@ def process_request(rawdata):
         return ERROR
 
 
+
 def server_program():
 
     pcrf_socket = socket.socket()  # Instantiate PCRF connection
@@ -149,10 +150,7 @@ def server_program():
                 print (str(datetime.datetime.now()) + " KeyError!")
             else:
                 s.send(next_msg.upper().decode('hex')) #Send CEA and DWA to PCRF
-                if ggsn_return_value == IS_CCR:
-                    print(str(datetime.datetime.now()) + " CCR sent to PCRF")
-                if pcrf_return_value is not  == SKIP:
-                    print(str(datetime.datetime.now()) + " CEA/DWA sent to PCRF")
+                print (str(datetime.datetime.now()) + " Message sent to PCRF")
 
 
         loop_iteration = loop_iteration + 1
