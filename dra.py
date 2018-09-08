@@ -6,20 +6,27 @@ import datetime
 import select
 import sys
 import Queue
+import time
+import json
 
+#################################### Global Parameters ####################################
 
-PCRF_PORT = 5001
-PCRF_IP = "10.248.125.144"
-DRA_PORT = 6000
-DRA_IP = "10.150.32.2"
+user_config = get_user_configurations()
+ORIGIN_HOST = str(user_config['dra_parameters']['origin_host'])
+DRA_IP  = str(user_config['dra_parameters']['dra_ip'])
+ORIGIN_REALM = str(user_config['dra_parameters']['origin_realm'])
+DRA_PORT = user_config['dra_parameters']['dra_port']
+PCRF_PORT = user_config['pcrf_parameters']['pcrf_port']
+PCRF_IP = str(user_config['pcrf_parameters']['pcrf_ip'])
 ERROR = -2
 SKIP = 2 # Flag used in Skip message for message processing
 IS_CCR = 0 # Flag for CCR, If 1 then message is a CCR request
 IS_CCA = 1 # Flag for CCA
-ORIGIN_HOST="dra.zte.com"
-ORIGIN_REALM="zte.com"
-VENDOR_ID = 10415
+TIME_INTERVAL = 30
+NUM_CCR_REQUESTS = 0
+data = {}
 
+#################################### Message Processing ###################################
 
 def process_request(rawdata):
     H=HDRItem()
@@ -42,9 +49,13 @@ def process_request(rawdata):
     else:
         return ERROR
 
-
+###################################### Main Function ######################################
 
 def server_program():
+
+    NUM_CCR_REQUESTS = 0
+    START_TIME = time.time()
+    END_TIME = time.time() + TIME_INTERVAL
 
     pcrf_socket = socket.socket()  # Instantiate PCRF connection
     #pcrf_socket.settimeout(10) #Set socket timeout to 5 seconds
@@ -71,6 +82,7 @@ def server_program():
     ggsn_socket.listen(2)  #Configure how many client the server can listen simultaneously
     sockets = [pcrf_socket , ggsn_socket]
     outputs = [ ]
+    data = [ ]
     message_queues = {}
 
     # Give the PCRF connection a queue for data we want to send
@@ -127,6 +139,7 @@ def server_program():
                         print (str(datetime.datetime.now()) + " Error decoding Diameter message")
                     if ggsn_return_value == IS_CCR:
                         print (str(datetime.datetime.now()) +" Saving CCR message to PCRF queue")
+                        NUM_CCR_REQUESTS = NUM_CCR_REQUESTS + 1
                         message_queues[pcrf_socket].put(ggsn_data) #Add message to PCRF Queue
                         if rs not in outputs:   #Add to writable sockets 
                             outputs.append(rs)
@@ -152,6 +165,14 @@ def server_program():
                 s.send(next_msg.upper().decode('hex')) #Send CEA and DWA to PCRF
                 print (str(datetime.datetime.now()) + " Message sent to PCRF")
 
+
+        if END_TIME <= time.time():
+            print (str(datetime.datetime.now()) + " Writing data to file")
+            data.append([current_milli_time(), NUM_CCR_REQUESTS])
+            with open('/var/www/html/data.json', 'w') as filehandle:  
+                json.dump(data, filehandle)
+            NUM_CCR_REQUESTS = 0
+            END_TIME = time.time() + TIME_INTERVAL
 
         loop_iteration = loop_iteration + 1
 

@@ -1,10 +1,36 @@
 import socket
 import binascii
 from libDiameter import *
+import subprocess
+import json
 
-ORIGIN_HOST="dra.telenor.com"
-DRA_IP = "10.150.32.2"
-ORIGIN_REALM="zte.com"
+#################################### File Load Function ####################################
+
+def get_user_configurations():
+    USER_CONFIG_PATH = get_path()+'/inputs.json'
+    file = open(USER_CONFIG_PATH)
+    configurations = json.load(file)
+    file.close()
+    return configurations
+
+def get_path():
+    p = subprocess.Popen(["pwd"], stdout=subprocess.PIPE , shell=True)
+    PATH = p.stdout.read()
+    PATH = PATH.rstrip('\n')
+    return PATH
+
+#################################### Global Parameters ####################################
+
+user_config = get_user_configurations()
+ORIGIN_HOST = str(user_config['dra_parameters']['origin_host'])
+DRA_IP  = str(user_config['dra_parameters']['dra_ip'])
+ORIGIN_REALM = str(user_config['dra_parameters']['origin_realm'])
+
+#################################### General Functions ####################################
+
+def current_milli_time():
+    millis = int(round(time.time() * 1000))
+    return millis
 
 def DecodeMSG(msg):
     H=HDRItem()
