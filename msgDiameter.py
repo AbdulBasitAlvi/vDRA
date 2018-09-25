@@ -26,7 +26,7 @@ ORIGIN_HOST = str(user_config['dra_parameters']['origin_host'])
 DRA_IP  = str(user_config['dra_parameters']['dra_ip'])
 ORIGIN_REALM = str(user_config['dra_parameters']['origin_realm'])
 
-#################################### General Functions ####################################
+#################################### General Functions ###########################:
 
 def current_milli_time():
     millis = int(round(time.time() * 1000))
@@ -55,12 +55,45 @@ def create_CEA(msg):
     DEST_REALM=findAVP("Origin-Realm",CER_avps)    
     # Let's build Capabilites-Exchange Answer  
     CEA_avps=[]  
+    CEA_avps.append(encodeAVP("Result-Code", 2001))  #DIAMETER_SUCCESS 2001
     CEA_avps.append(encodeAVP("Origin-Host", ORIGIN_HOST))  
-    CEA_avps.append(encodeAVP("Origin-Realm", ORIGIN_REALM))  
-    CEA_avps.append(encodeAVP("Product-Name", "vDRA"))  
-    CEA_avps.append(encodeAVP('Auth-Application-Id', 4))  
-    CEA_avps.append(encodeAVP("Supported-Vendor-Id", 10415))  
-    CEA_avps.append(encodeAVP("Result-Code", 2001))  #DIAMETER_SUCCESS 2001  
+    CEA_avps.append(encodeAVP("Origin-Realm", ORIGIN_REALM))
+    CEA_avps.append(encodeAVP("Host-IP-Address", DRA_IP))  
+    CEA_avps.append(encodeAVP("Vendor-Id", 10415)) 
+    CEA_avps.append(encodeAVP("Product-Name", "vDRA"))
+    CEA_avps.append(encodeAVP("Origin-State-Id", 0))
+    CEA_avps.append(encodeAVP('Auth-Application-Id', 4)) 
+    CEA_avps.append(encodeAVP('Auth-Application-Id', 3))
+    CEA_avps.append(encodeAVP('Acct-Application-Id', 3))
+    CEA_avps.append(encodeAVP("Supported-Vendor-Id", 10415))
+    CEA_avps.append(encodeAVP("Vendor-Specific-Application-Id", [
+        encodeAVP("Vendor-Id", 10415), 
+        encodeAVP("Auth-Application-Id", 99999995)]))  #3GPP_Gx    
+    CEA_avps.append(encodeAVP("Vendor-Specific-Application-Id", [
+        encodeAVP("Vendor-Id", 10415), 
+        encodeAVP("Auth-Application-Id", 16777303)]))  #3GPP_Gx  
+    CEA_avps.append(encodeAVP("Vendor-Specific-Application-Id", [
+        encodeAVP("Vendor-Id", 10415), 
+        encodeAVP("Auth-Application-Id", 16777302)]))  #3GPP_Gx
+    CEA_avps.append(encodeAVP("Vendor-Specific-Application-Id", [
+        encodeAVP("Vendor-Id", 10415), 
+        encodeAVP("Auth-Application-Id", 16777266)]))  #3GPP_Gx  
+    CEA_avps.append(encodeAVP("Vendor-Specific-Application-Id", [
+        encodeAVP("Vendor-Id", 10415), 
+        encodeAVP("Auth-Application-Id", 16777267)]))  #3GPP_Gx    
+    CEA_avps.append(encodeAVP("Vendor-Specific-Application-Id", [
+        encodeAVP("Vendor-Id", 10415), 
+        encodeAVP("Auth-Application-Id", 16777287)]))  #3GPP_Gx      
+    CEA_avps.append(encodeAVP("Vendor-Specific-Application-Id", [
+        encodeAVP("Vendor-Id", 10415), 
+        encodeAVP("Auth-Application-Id", 16777238)]))  #3GPP_Gx 
+    CEA_avps.append(encodeAVP("Vendor-Specific-Application-Id", [
+        encodeAVP("Vendor-Id", 10415), 
+        encodeAVP("Auth-Application-Id", 16777232)]))  #3GPP_Gx   
+    CEA_avps.append(encodeAVP("Vendor-Specific-Application-Id", [
+        encodeAVP("Vendor-Id", 10415), 
+        encodeAVP("Auth-Application-Id", 16777231)]))  #3GPP_Gx   
+    CEA_avps.append(encodeAVP('Firmware-Revision', 1))  
     # Create message header (empty)  
     CEA=HDRItem()  
     # Set command code  

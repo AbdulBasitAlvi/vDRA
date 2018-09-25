@@ -1,1 +1,13 @@
-{"dra_parameters": {"origin_host": "dra.telenor.com", "dra_ip": "10.150.32.2", "origin_realm": "zte.com", "dra_port": 6000},"pcrf_parameters": {"count": 1, "pcrf_ip": "10.248.125.144", "pcrf_port" : 5001}}
+{
+"dra_parameters":{
+"origin_host":"dra.zte.com",
+"dra_ip":"10.150.32.2",
+"origin_realm":"zte.com"
+"dra_port":6000
+},
+"pcrf_parameters":{
+"count":1,
+"pcrf_ip":"10.248.125.144",
+"pcrf_port":5001
+}
+}
